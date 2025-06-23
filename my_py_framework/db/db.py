@@ -46,19 +46,24 @@ class Database:
 
     def run_query(self, query):
         """Execute SQL query and return a DataFrame."""
-        pd_year = os.environ.get('pd_year')
-        if not pd_year:
-            self.logger.warning("Environment variable 'pd_year' not set. Falling back to config.")
-            pd_year = self.read_config_value('pd_year', 'pd_year')
-            if not pd_year:
-                raise ValueError("Missing 'pd_year' in both environment and config.")
-            os.environ['pd_year'] = pd_year
+        # Step: Get the environment variable name that stores the Oracle password
+        orcl_pwd_env_var = self.read_config_value('base', 'orcl_pwd_var')
+        if not orcl_pwd_env_var:
+            raise ValueError("Missing 'orcl_pwd_var' in config [base] section.")
+
+        # Step: Get the actual Oracle password from the environment variable
+        orcl_password = os.environ.get(orcl_pwd_env_var)
+        if not orcl_password:
+            raise ValueError(f"Environment variable '{orcl_pwd_env_var}' is not set.")
 
         try:
             self.logger.info("Connecting to Oracle database...")
+            cx_Oracle.init_oracle_client(
+                lib_dir=r"C:\Software_x64\oracle21c_client_64\product\21.0.0\client_1\bin"
+            )
             conn = cx_Oracle.connect(
                 user=self.read_config_value('base', 'user'),
-                password=self.read_config_value('base', 'password'),
+                password=orcl_password,
                 dsn=f"{self.read_config_value('base', 'host')}:{self.read_config_value('base', 'port')}/{self.read_config_value('base', 'service_name')}"
             )
             self.logger.info("Connection established.")
