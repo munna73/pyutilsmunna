@@ -82,15 +82,15 @@ def call_actual_service(item_number, config_path=CONFIG_PATH):
 
 
 def get_expected_s3_key(df, priority_list):
-    """
-    Finds s3_key_id for the highest-priority store in result set.
-    """
-    store_map = {
-        row["store_number"].upper(): row["s3_key_id"] for _, row in df.iterrows()
-    }
-    for store in priority_list:
-        if store.upper() in store_map:
-            return store_map[store.upper()]
+    df['std_img'] = df['std_img'].str.upper()
+
+    for _, row in df.iterrows():
+        store = row['std_img']
+        if store in [p.upper() for p in priority_list]:
+            logging.info(f"Matched priority store: {store}, Full row: {row.to_dict()}")
+            return row['s3_bucket_id']
+
+    logging.warning("No matching priority store found.")
     return None
 
 
