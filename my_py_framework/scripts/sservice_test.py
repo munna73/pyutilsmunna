@@ -81,6 +81,51 @@ def call_actual_service(item_number, config_path=CONFIG_PATH):
 # ---------- Priority Resolver ---------- #
 
 
+def get_expected_s3_key_new(df, priority_list, b_id=None):
+    """
+    Selects the s3_bucket_id from a DataFrame based on store priority and latest enc_dt.
+    
+    Parameters:
+    - df (pd.DataFrame): Input DataFrame with columns ['std_img', 'enc_dt', 'b_id', 's3_bucket_id'].
+    - priority_list (list): Ordered list of store names (e.g., ['ROSS', 'TJMAX', 'NRACK']).
+    - b_id (optional): If provided, filter the DataFrame to only include rows with this b_id.
+
+    Returns:
+    - str or None: s3_bucket_id of the matched row, or None if no match.
+    """
+    if df.empty:
+        logging.warning("DataFrame is empty.")
+        return None
+
+    # Normalize store names to upper case for matching
+    df = df.copy()
+    df['std_img'] = df['std_img'].astype(str).str.upper()
+
+    # Optional: filter by b_id
+    if b_id is not None:
+        df = df[df['b_id'] == b_id]
+        if df.empty:
+            logging.warning(f"No rows found for b_id = {b_id}")
+            return None
+
+    # Ensure enc_dt is in datetime format
+    df['enc_dt'] = pd.to_datetime(df['enc_dt'], errors='coerce')
+
+    # Drop rows with invalid dates
+    df = df.dropna(subset=['enc_dt'])
+
+    for store in priority_list:
+        store_upper = store.upper()
+        filtered = df[df['std_img'] == store_upper]
+        if not filtered.empty:
+            # Sort by enc_dt descending to get latest
+            latest_row = filtered.sort_values(by='enc_dt', ascending=False).iloc[0]
+            logging.info(f"Matched store: {store}, Row: {latest_row.to_dict()}")
+            return latest_row['s3_bucket_id']
+
+    logging.warning("No matching priority store found.")
+    return None
+
 def get_expected_s3_key(df, priority_list):
     df['std_img'] = df['std_img'].str.upper()
 
